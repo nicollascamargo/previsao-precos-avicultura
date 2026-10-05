@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[dev,stats]"
+
+      - name: Lint
+        run: ruff check src tests
+
+      - name: Tests
+        run: pytest --cov=precos_avicultura --cov-report=term-missing
+
+  pipeline:
+    # Runs the whole thing end to end on synthetic data. Unit tests can pass
+    # while the pipeline is broken; this job is what catches that.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Generate panel
+        run: python -m precos_avicultura.cli dados --sintetico
+
+      - name: Walk-forward backtest
+        run: python -m precos_avicultura.cli backtest --test-size 12
+
+      - name: Train artifacts
+        run: python -m precos_avicultura.cli treinar --test-size 12
+
+      - name: Assert the model beats the naive baseline
+        run: |
+          python - <<'PY'
+          import json, sys
+          card = json.load(open("models/model_card.json"))
+          falhas = []
+          for horizonte, info in card.items():
+              m = info["metricas_backtest"]
+              mae_modelo = m["mae"]
+              mae_naive = m["mae_baselines"]["naive"]
+              print(f"h={horizonte}: modelo {mae_modelo:.4f} | naive {mae_naive:.4f} | MASE {m['mase']:.3f}")
+              if mae_modelo > mae_naive:
+                  falhas.append(horizonte)
+          if falhas:
+              sys.exit(f"model lost to the naive baseline at horizons {falhas}")
+          PY
+
+      - name: Upload backtest artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backtest
+          path: |
+            data/processed/backtest_metricas.csv
+            models/model_card.json
