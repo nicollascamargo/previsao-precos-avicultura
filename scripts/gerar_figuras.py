@@ -38,19 +38,19 @@ def figura_serie(panel: pd.DataFrame) -> None:
     df[DATE_COL] = pd.to_datetime(df[DATE_COL])
 
     fig, ax = plt.subplots(figsize=(11, 4.5))
-    ax.plot(df[DATE_COL], df[TARGET], color=COR_REAL, linewidth=1.8, label="Frango (R$/kg)")
-    ax.set_ylabel("Frango (R$/kg)", color=COR_REAL)
+    ax.plot(df[DATE_COL], df[TARGET], color=COR_REAL, linewidth=1.8, label="Broiler (BRL/kg)")
+    ax.set_ylabel("Broiler (BRL/kg)", color=COR_REAL)
     _estilo(ax)
 
     ax2 = ax.twinx()
     ax2.plot(
-        df[DATE_COL], df["preco_milho"], color=COR_AUX, linewidth=1.4, label="Milho (R$/sc)"
+        df[DATE_COL], df["preco_milho"], color=COR_AUX, linewidth=1.4, label="Corn (BRL/bag)"
     )
-    ax2.set_ylabel("Milho (R$/saca 60kg)", color=COR_AUX)
+    ax2.set_ylabel("Corn (BRL/60kg bag)", color=COR_AUX)
     ax2.spines[["top"]].set_visible(False)
 
     ax.set_title(
-        "Preço do frango e custo do milho — o repasse acontece com defasagem",
+        "Broiler price and corn cost — pass-through happens with a lag",
         loc="left",
         fontsize=12,
         weight="bold",
@@ -77,7 +77,7 @@ def figura_backtest(predicoes: pd.DataFrame, modelo: str = "gbm_delta") -> None:
         ].sort_values("data_alvo")
         datas = pd.to_datetime(sub["data_alvo"])
 
-        ax.plot(datas, sub["y_real"], color=COR_REAL, linewidth=2, label="Realizado")
+        ax.plot(datas, sub["y_real"], color=COR_REAL, linewidth=2, label="Actual")
         ax.plot(
             datas, sub["y_previsto"], color=COR_PREV, linewidth=1.8, linestyle="--", label=modelo
         )
@@ -90,14 +90,14 @@ def figura_backtest(predicoes: pd.DataFrame, modelo: str = "gbm_delta") -> None:
             label="naive",
         )
         erro = (sub["y_real"] - sub["y_previsto"]).abs().mean()
-        ax.set_title(f"h = {h} mês(es) — MAE {erro:.3f} R$/kg", loc="left", fontsize=11)
-        ax.set_ylabel("R$/kg")
+        ax.set_title(f"h = {h} month(s) — MAE {erro:.3f} BRL/kg", loc="left", fontsize=11)
+        ax.set_ylabel("BRL/kg")
         _estilo(ax)
         if h == horizontes[0]:
             ax.legend(frameon=False, ncol=3, loc="upper left")
 
     fig.suptitle(
-        "Backtest walk-forward: previsto vs realizado",
+        "Walk-forward backtest: predicted vs actual",
         x=0.01,
         ha="left",
         fontsize=13,
@@ -115,15 +115,15 @@ def figura_metricas(metricas: pd.DataFrame) -> None:
 
     fig, ax = plt.subplots(figsize=(9, 4.2))
     pivot.plot(kind="barh", ax=ax, width=0.78, colormap="copper")
-    ax.set_xlabel("MAE (R$/kg) — menor é melhor")
+    ax.set_xlabel("MAE (BRL/kg) — lower is better")
     ax.set_ylabel("")
     ax.set_title(
-        "Erro por modelo e horizonte — baselines incluídas",
+        "Error by model and horizon — baselines included",
         loc="left",
         fontsize=12,
         weight="bold",
     )
-    ax.legend(title="horizonte (meses)", frameon=False)
+    ax.legend(title="horizon (months)", frameon=False)
     _estilo(ax)
     ax.grid(axis="x", alpha=0.25, linewidth=0.7)
     fig.tight_layout()
@@ -140,7 +140,7 @@ def main() -> None:
     figura_serie(panel)
     figura_backtest(predicoes)
     figura_metricas(metricas)
-    print(f"Figuras salvas em {FIG_DIR.resolve()}")
+    print(f"Figures saved to {FIG_DIR.resolve()}")
 
 
 if __name__ == "__main__":
